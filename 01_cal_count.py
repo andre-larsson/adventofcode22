@@ -11,6 +11,9 @@ for row in data:
     else:
         result.append(chunksum)
         chunksum=0
-        
 
+# 1a
+print(max(result))
+
+# 1b
 print(sum(sorted(result)[-3:]))
