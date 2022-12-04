@@ -19,7 +19,7 @@ for line in lines:
 print(total_sum)
 
 # part b
-# count how many times one range fully contains the other
+# count how many times there is an overlap
 total_sum = 0
 
 for line in lines:
