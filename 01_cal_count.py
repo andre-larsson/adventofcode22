@@ -1,4 +1,4 @@
-input_path="input.txt"
+input_path="data/02.txt"
 
 with open(input_path, "r") as f:
     data = f.read().splitlines()
