@@ -30,8 +30,7 @@ for l in init_stack[::-1]:
 stack_dict = copy.deepcopy(init_stack_dict)
 
 for move_order in move_orders:
-    num, from_id, to_id = move_order.split()[1::2]
-    num, from_id, to_id = int(num), int(from_id), int(to_id)
+    num, from_id, to_id = list(map(int, move_order.split()[1::2]))
 
     for i in range(num):
         stack_dict[to_id].append(stack_dict[from_id].pop())
@@ -45,8 +44,7 @@ print(result_a)
 stack_dict = copy.deepcopy(init_stack_dict)
 
 for move_order in move_orders:
-    num, from_id, to_id = move_order.split()[1::2]
-    num, from_id, to_id = int(num), int(from_id), int(to_id)
+    num, from_id, to_id = list(map(int, move_order.split()[1::2]))
 
     stack_dict[to_id] = stack_dict[to_id] + stack_dict[from_id][-num:]
     stack_dict[from_id] = stack_dict[from_id][:-num]
