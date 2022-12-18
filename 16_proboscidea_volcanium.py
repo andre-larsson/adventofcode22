@@ -14,8 +14,7 @@ for line in lines:
     flow_rate = int(line[4].split("=")[1].strip(";"))
     neighbors = [x.strip(",") for x in line[9:]]
     init_valve_dict[line[1]] = {"neighbors": neighbors,
-                                "flow_rate": flow_rate,
-                                "open": False}
+                                "flow_rate": flow_rate}
 
 def get_distances(valve_dict, start_valve):
     """ Dijkstra's algorithm (again!)"""
@@ -41,12 +40,11 @@ def get_distances(valve_dict, start_valve):
 
 pprint(init_valve_dict)
 
-def get_best_move(valve_dict, start_pos, countdown):
-    valve_dict = deepcopy(valve_dict)
+def get_best_moves(valve_dict, start_pos, countdown):
     distances, previous = get_distances(valve_dict, start_pos)
     valve_scores = list()
     for valve, dist in distances.items():
-        if valve_dict[valve]["open"] or dist+1 > countdown:
+        if dist+1 > countdown:
             continue
 
         # calculate total eventual pressure (TEP) if
@@ -61,24 +59,35 @@ def get_best_move(valve_dict, start_pos, countdown):
 
 tp_list = list()
 
-def calculate_pressure(valve_dict, current_valve, countdown, total_ppm):
+def calculate_pressure(valve_dict, current_valve, valve_is_open, countdown, total_ppm):
     if countdown <= 0:
         return 0
 
-    valve_scores = get_best_move(deepcopy(valve_dict), current_valve, countdown)
-    best_valve, TEP, dist, flow_rate = valve_scores[0]
+    valve_scores = get_best_moves(valve_dict, current_valve, countdown)
+    valve_scores = [x for x in valve_scores if x[1] != 0]  # many of the rooms have 0 flow rate
 
-    if best_valve is not None and dist <= countdown:
-        valve_dict[best_valve]["open"] = True
-        add_pressure = total_ppm * dist
-        total_pressure = calculate_pressure(deepcopy(valve_dict), best_valve, countdown-dist, total_ppm+flow_rate)\
-                         + add_pressure
-        return total_pressure
+    total_pressure_list = list()
+
+    for valve_score in valve_scores:
+        best_valve, TEP, dist, flow_rate = valve_score
+
+        if best_valve is not None and dist <= countdown and not valve_is_open[best_valve]:
+            new_valve_is_open = valve_is_open.copy()
+            new_valve_is_open[best_valve] = True
+            add_pressure = total_ppm * dist
+            total_pressure = calculate_pressure(valve_dict, best_valve, new_valve_is_open, countdown-dist,
+                                                total_ppm+flow_rate) + add_pressure
+            total_pressure_list.append(total_pressure)
+        else:
+            total_pressure_list.append(countdown * total_ppm)
+
+    if len(total_pressure_list) > 0:
+        return max(total_pressure_list)
     else:
-        add_pressure = total_ppm * countdown
-        return add_pressure
+        return countdown * total_ppm
 
+# part a
 valve_dict = deepcopy(init_valve_dict)
-best_valve = "AA"
-total_pressure = calculate_pressure(valve_dict, best_valve, 30, 0)
+valve_is_open = defaultdict(lambda: False)
+total_pressure = calculate_pressure(valve_dict, "AA", valve_is_open, 30, 0)
 print(f"Total pressure: {total_pressure}")
