@@ -19,6 +19,9 @@ def is_correct_order(left, right):
             else:
                 return result
 
+        if len(left) == len(right):
+            return None
+
         return True
     elif isinstance(left, int) and isinstance(right, list):
         return is_correct_order([left], right)
@@ -38,5 +41,5 @@ for i, pair in enumerate(pairs):
         print(f"Pair {i+1} is correct")
         correct_ids.append(i+1)
 
-# correct answer on examplde data, but not on full input
+# correct answer on example data, but not on full input
 print(sum(correct_ids))
