@@ -1,4 +1,6 @@
 # load the data
+import functools
+
 with open("data/13.txt", "r") as f:
     pairs = f.read().split("\n\n")
 
@@ -29,14 +31,34 @@ def is_correct_order(left, right):
     else:
         return True
 
+# part a
+packets = []
 correct_ids = []
 for i, pair in enumerate(pairs):
     lines = pair.split("\n")
     first = eval(f"{lines[0]}")
     second = eval(f"{lines[1]}")
+    packets.append(first)
+    packets.append(second)
     if is_correct_order(first, second):
-        print(f"Pair {i+1} is correct")
         correct_ids.append(i+1)
 
-# correct answer on example data, but not on full input
+def cmp_function(left, right):
+    answer = is_correct_order(left, right)
+    if answer is None:
+        return 0
+    elif answer:
+        return -1
+    else:
+        return 1
+
 print(sum(correct_ids))
+
+# part b
+packets.append([[2]])
+packets.append([[6]])
+sorted_packets = sorted(packets, key=functools.cmp_to_key(cmp_function))
+
+decoder_key = (sorted_packets.index([[2]])+1)*(sorted_packets.index([[6]])+1)
+
+print(decoder_key)
