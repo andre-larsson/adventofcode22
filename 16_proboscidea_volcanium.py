@@ -42,10 +42,11 @@ def get_distances(valve_dict, start_valve):
 pprint(init_valve_dict)
 
 def get_best_move(valve_dict, start_pos, countdown):
+    valve_dict = deepcopy(valve_dict)
     distances, previous = get_distances(valve_dict, start_pos)
     valve_scores = list()
     for valve, dist in distances.items():
-        if valve_dict[valve]["open"]:
+        if valve_dict[valve]["open"] or dist+1 > countdown:
             continue
 
         # calculate total eventual pressure (TEP) if
@@ -61,27 +62,23 @@ def get_best_move(valve_dict, start_pos, countdown):
 tp_list = list()
 
 def calculate_pressure(valve_dict, current_valve, countdown, total_ppm):
-
     if countdown <= 0:
         return 0
 
-    valve_scores = get_best_move(valve_dict, current_valve, countdown)
-    for valve_score in valve_scores:
-        best_valve, TEP, dist, flow_rate = valve_score
+    valve_scores = get_best_move(deepcopy(valve_dict), current_valve, countdown)
+    best_valve, TEP, dist, flow_rate = valve_scores[0]
 
-        if best_valve is not None:
-            valve_dict[best_valve]["open"] = True
-            add_pressure = total_ppm * dist
-            total_pressure = calculate_pressure(valve_dict, best_valve, countdown-dist, total_ppm+flow_rate)\
-                             + add_pressure
-            tp_list.append(total_pressure)
-            return total_pressure
-
-        else:
-            return 0
+    if best_valve is not None and dist <= countdown:
+        valve_dict[best_valve]["open"] = True
+        add_pressure = total_ppm * dist
+        total_pressure = calculate_pressure(deepcopy(valve_dict), best_valve, countdown-dist, total_ppm+flow_rate)\
+                         + add_pressure
+        return total_pressure
+    else:
+        add_pressure = total_ppm * countdown
+        return add_pressure
 
 valve_dict = deepcopy(init_valve_dict)
 best_valve = "AA"
 total_pressure = calculate_pressure(valve_dict, best_valve, 30, 0)
 print(f"Total pressure: {total_pressure}")
-print(f"Max pressure: {tp_list}")
