@@ -21,7 +21,6 @@ def is_correct_order(left, right):
 
         if len(left) == len(right):
             return None
-
         return True
     elif isinstance(left, int) and isinstance(right, list):
         return is_correct_order([left], right)
@@ -35,8 +34,6 @@ for i, pair in enumerate(pairs):
     lines = pair.split("\n")
     first = eval(f"{lines[0]}")
     second = eval(f"{lines[1]}")
-    print("1", first)
-    print("2", second)
     if is_correct_order(first, second):
         print(f"Pair {i+1} is correct")
         correct_ids.append(i+1)
