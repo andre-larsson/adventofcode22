@@ -53,7 +53,6 @@ def get_distance(coord):
     """ Dijkstra's algorithm """
     distances = np.full_like(hill_map, np.inf)
     distances[coord[0], coord[1]] = 0
-    prev_shortest = dict()
 
     vertices = np.zeros((hill_map.shape[0]*hill_map.shape[1],2), dtype=int)
     vertices[:, 0] = np.repeat(np.arange(hill_map.shape[0]), hill_map.shape[1])
@@ -72,7 +71,6 @@ def get_distance(coord):
             new_distance = distances[min_vertex[0], min_vertex[1]] + 1
             if new_distance < distances[new_vertex[0], new_vertex[1]]:
                 distances[new_vertex[0], new_vertex[1]] = new_distance
-                prev_shortest[tuple(new_vertex)] = tuple(min_vertex)
     return distances[e_coord[0], e_coord[1]]
 
 # part a
