@@ -1,11 +1,13 @@
-from collections import defaultdict
-
 import numpy as np
 
 with open("data/18.txt") as f:
     data = f.readlines()
 
-voxels= np.array([list(map(int, x.split(","))) for x in data])
+voxels= np.array([list(map(lambda x: int(x)+1, x.split(","))) for x in data])
+
+# add one to each dimension, to make sure there is air around it
+# (for part b)
+print(voxels)
 
 # part a
 def calc_num_connections(voxels):
@@ -21,36 +23,49 @@ exposed_sides = 6*len(voxels) - calc_num_connections(voxels)
 print(exposed_sides)
 
 # part b
-gap_voxels = list()
-num_gaps_found = defaultdict(int)
 
-for line_d in [0,1,2]:
-    plane_d = {0, 1, 2} - {line_d}
-    plane_d = list(plane_d)
-    planes = np.array([voxels[:, plane_d[0]], voxels[:, plane_d[1]]]).T
-    # find planes with at least 2 points
-    num_points = defaultdict(int)
-    coord_dict = defaultdict(list)
-    for i in range(len(planes)):
-        num_points[tuple(planes[i])] += 1
-        coord_dict[tuple(planes[i])].append(voxels[i][line_d])
-    planes_to_check = [k for k, v in num_points.items() if v >= 2]
+cube_bounds = np.array([np.min(voxels, axis=0)-1, np.max(voxels, axis=0)+1]).T
+print(cube_bounds)
+cube_volume = np.prod(cube_bounds[:,1]-cube_bounds[:,0])
+print(f"Volume: {cube_volume}")
 
-    for key in planes_to_check:
-        d_coords = np.sort(coord_dict[key])
-        gaps = (d_coords[1:] - d_coords[:-1]) == 2 # if distance of 2, there is a gap
-        gap_coords = d_coords[:-1][gaps]+1 # get the gap coordinates
-        for c in gap_coords:
-            voxel = np.zeros(3)
-            voxel[line_d] = c
-            voxel[plane_d[0]] = key[0]
-            voxel[plane_d[1]] = key[1]
-            num_gaps_found[tuple(voxel)] += 1
+lava_voxels = frozenset([tuple(x) for x in voxels])
+def get_new_neighbours(voxel, filled_voxels):
+    result = []
+    if voxel[0] > cube_bounds[0, 0]:
+        result.append(voxel + np.array([-1, 0, 0]))
+    if voxel[1] > cube_bounds[1, 0]:
+        result.append(voxel + np.array([0, -1, 0]))
+    if voxel[2] > cube_bounds[2, 0]:
+        result.append(voxel + np.array([0, 0, -1]))
+    if voxel[0] < cube_bounds[0, 1]:
+        result.append(voxel + np.array([1, 0, 0]))
+    if voxel[1] < cube_bounds[1, 1]:
+        result.append(voxel + np.array([0, 1, 0]))
+    if voxel[2] < cube_bounds[2, 1]:
+        result.append(voxel + np.array([0, 0, 1]))
 
-air_bubbles = [k for k, v in num_gaps_found.items() if v >= 3]
+    neighbours_set = [tuple(x) for x in result if tuple(x) not in filled_voxels]
+    return neighbours_set
 
-print(air_bubbles)
+filled_voxels = set()
 
-exterior_sides = exposed_sides - len(air_bubbles)*6
+# voxels_to_check is a set of tuples
+# set means impossible to list the same voxel twice
+voxels_to_check = set([tuple(cube_bounds[:, 0])])
+num_exterior = 0
+while len(voxels_to_check) > 0:
+    voxel = voxels_to_check.pop()
 
-print(exterior_sides)
+    filled_voxels.add(voxel)
+    neighbours = get_new_neighbours(voxel, frozenset(filled_voxels))
+
+    for neighbour in neighbours:
+        # if neighbour is lava, we have found an exterior side
+        if neighbour in lava_voxels:
+            num_exterior += 1
+            continue
+        if neighbour not in filled_voxels:
+            voxels_to_check.add(neighbour)
+
+print(num_exterior)
