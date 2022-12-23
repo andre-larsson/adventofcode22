@@ -1,68 +1,58 @@
-import numpy as np
+from copy import deepcopy
 
 with open("data/20.txt") as f:
     lines = f.readlines()
 
-numbers = np.array([int(x) for x in lines])
+numbers = [(i, int(x)) for i, x in enumerate(lines)]
+
+
+def find_pos_by_i(numbers, num_i):
+    for j in range(len(numbers)):
+        if numbers[j][0] == num_i:
+            return j
+
+def find_pos_by_value(numbers, value):
+    for j in range(len(numbers)):
+        if numbers[j][1] == value:
+            return j
 
 def mix_numbers(numbers):
-    numbers = np.array(numbers)
-    movement = np.array(numbers)
+
+    new_numbers = deepcopy(numbers)
     n_num = len(numbers)
 
-    for i, move in enumerate(movement):
+    for i in range(n_num):
+        # find the number to move in new_numbers
+        num_i = find_pos_by_i(new_numbers, i)
 
-        if move == 0:
-            continue
+        # remove from new_numbers
+        this_num = new_numbers.pop(num_i)
+        new_index = (num_i + this_num[1]) % (n_num-1)
+        new_numbers.insert(new_index, this_num)
 
-        if len(np.where(numbers == move)) == 0:
-            pass
-
-        current_index = np.where(numbers == move)[0][0]
-
-        # move position of this number
-        new_index = current_index + move
-
-        if new_index > 0:
-            num_wrap_arounds = abs(new_index // (n_num-1))  # (n_num-1) since we get free move when reaching border
-        else:
-            num_wrap_arounds = (abs(new_index) // (n_num-1)) + 1
-
-        # calc position of new index
-        if move > 0:
-            new_index = ((new_index % n_num) + num_wrap_arounds) % (n_num)
-        else:
-            new_index = ((new_index % n_num) - num_wrap_arounds) % (n_num)
+    return new_numbers
 
 
-        if move > 0:
-            if num_wrap_arounds:
-                numbers[new_index+1:current_index+1] = numbers[new_index:current_index]
-            else:
-                # get indices to the right
-                numbers[current_index:new_index] = numbers[current_index+1:new_index+1]
-        if move < 0:
-            if num_wrap_arounds:
-                numbers[current_index:new_index] = numbers[current_index+1:new_index+1]
-
-            else:
-                # get indices to the left
-                numbers[current_index:new_index] = numbers[current_index+1:new_index+1]
-
-        numbers[new_index] = move
-
-        pass
-
+def mix_numbers_n(numbers, n, multiplier):
+    numbers = [(i, n * multiplier) for i, n in numbers]
+    for _ in range(n):
+        numbers = mix_numbers(numbers)
     return numbers
 
 def get_coords(numbers):
-    zero_index = np.where(numbers == 0)[0][0]
+    zero_index = find_pos_by_value(numbers, 0)
     # 1000th number is number with index 999 etc...
-    coords = [(e*1000 + zero_index-1) % len(numbers) for e in range(3)]
-    return numbers[coords]
+    coords = [numbers[(e*1000 + zero_index) % len(numbers)][1] for e in range(1, 4)]
+    print(coords)
+    return coords
 
-numbers = mix_numbers(numbers)
+
+answer_a = sum(get_coords(mix_numbers(numbers)))
+
+print(f"Answer a: {answer_a}")
 
 
-print(numbers)
-print(get_coords(numbers))
+numbers_b = mix_numbers_n(numbers, 10, 811589153)
+
+answer_b = sum(get_coords(numbers_b))
+print(f"Answer b: {answer_b}")
