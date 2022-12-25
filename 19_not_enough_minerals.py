@@ -1,5 +1,8 @@
 import re
-from pprint import pprint
+from copy import deepcopy
+from time import perf_counter
+
+from joblib import Parallel, delayed
 
 with open("data/19.txt") as f:
     lines = f.readlines()
@@ -11,10 +14,22 @@ class BluePrint():
         self.clay_cost = clay_cost # ore
         self.obs_cost = obs_cost # ore, clay
         self.geode_cost = geode_cost # ore, obsidian
+        self.max_costs = (max(ore_cost, clay_cost, obs_cost[0], obs_cost[0]), # ore
+                          obs_cost[1], # clay
+                          geode_cost[1], # obsidian
+                        0)  # geode
 
     def __repr__(self):
         return f"{self.id}: {self.ore_cost}, {self.clay_cost}, {self.obs_cost}, {self.geode_cost}"
 
+
+# read all blueprints
+blueprints = list()
+for line in lines:
+    digits = re.findall(r"\d+", line)
+    blueprints.append(BluePrint(digits[0], int(digits[1]), int(digits[2]),
+                                (int(digits[3]), int(digits[4])), # obs cost
+                                (int(digits[5]), int(digits[6])))) # geode cost
 
 class MiningOperation():
     def __init__(self, blueprint: BluePrint, resources: list = None, production: list = None, time: int = None):
@@ -29,7 +44,7 @@ class MiningOperation():
         else:
             self.production = production
 
-        self.planned_production = [1,0,0,0]
+        # self.planned_production = [1,0,0,0]
 
         if time is None:
             self.time = 0
@@ -37,53 +52,45 @@ class MiningOperation():
             self.time = time
 
         self.blueprint = blueprint
+        self.max_costs = list(blueprint.max_costs)
 
-    def buy_ore_robot(self):
-        if self.resources[0] >= self.blueprint.ore_cost:
-            self.resources[0] -= self.blueprint.ore_cost
-            self.planned_production[0] += 1
-            return True
-        else:
-            return False
+    def from_tuple(self, t):
+        self.__init__(self.blueprint, t[:4], t[4:8])
+        return self
 
-    def buy_clay_robot(self):
-        if self.resources[0] >= self.blueprint.clay_cost:
-            self.resources[0] -= self.blueprint.clay_cost
-            self.planned_production[1] += 1
-            return True
-        else:
-            return False
+    def to_tuple(self):
+        return tuple(self.resources + self.production + [self.time])
 
-    def buy_obs_robot(self):
-        if self.resources[0] >= self.blueprint.obs_cost[0] and self.resources[1] >= self.blueprint.obs_cost[1]:
-            self.resources[0] -= self.blueprint.obs_cost[0]
-            self.resources[1] -= self.blueprint.obs_cost[1]
-            self.planned_production[2] += 1
-            return True
-        else:
-            return False
 
-    def buy_geode_robot(self):
-        if self.resources[0] >= self.blueprint.geode_cost[0] and self.resources[2] >= self.blueprint.geode_cost[1]:
-            self.resources[0] -= self.blueprint.geode_cost[0]
-            self.resources[2] -= self.blueprint.geode_cost[1]
-            self.planned_production[3] += 1
-            return True
-        else:
-            return False
+    def can_afford_ore(self):
+        return self.resources[0] >= self.blueprint.ore_cost
 
-    def build_robots(self, order: tuple):
-        """Build the robots specified by the tuple, return True if miner has all robots."""
-        has_robots = True
-        if order[0] > self.production[0]:
-            has_robots = self.buy_ore_robot() and has_robots
-        if order[1] > self.production[1]:
-            has_robots = self.buy_clay_robot() and has_robots
-        if order[2] > self.production[2]:
-            has_robots = self.buy_obs_robot() and has_robots
-        if order[3] > self.production[3]:
-            has_robots = self.buy_geode_robot() and has_robots
-        return has_robots
+    def build_ore_robot(self):
+        self.resources[0] -= self.blueprint.ore_cost
+        self.production[0] += 1
+
+    def can_afford_clay(self):
+        return self.resources[0] >= self.blueprint.clay_cost
+
+    def build_clay_robot(self):
+        self.resources[0] -= self.blueprint.clay_cost
+        self.production[1] += 1
+
+    def can_afford_obs(self):
+        return self.resources[0] >= self.blueprint.obs_cost[0] and self.resources[1] >= self.blueprint.obs_cost[1]
+
+    def build_obs_robot(self):
+        self.resources[0] -= self.blueprint.obs_cost[0]
+        self.resources[1] -= self.blueprint.obs_cost[1]
+        self.production[2] += 1
+
+    def can_afford_geode(self):
+        return self.resources[0] >= self.blueprint.geode_cost[0] and self.resources[2] >= self.blueprint.geode_cost[1]
+
+    def build_geode_robot(self):
+        self.resources[0] -= self.blueprint.geode_cost[0]
+        self.resources[2] -= self.blueprint.geode_cost[1]
+        self.production[3] += 1
 
     def mine(self):
         self.resources[0] += self.production[0]
@@ -91,117 +98,94 @@ class MiningOperation():
         self.resources[2] += self.production[2]
         self.resources[3] += self.production[3]
         self.time += 1
-        # update production
-        self.production = list(self.planned_production)
-
 
     def __repr__(self):
         return f"Blueprint: {self.blueprint.id}, time: {self.time}, " \
                f"resources: {self.resources}, production: {self.production}"
 
 
-# read all blueprints
-blueprints = list()
-for line in lines:
-    digits = re.findall(r"\d+", line)
-    blueprints.append(BluePrint(digits[0], int(digits[1]), int(digits[2]),
-                                (int(digits[3]), int(digits[4])), # obs cost
-                                (int(digits[5]), int(digits[6])))) # geode cost
+# best_geodes, final_productions = find_optimal_build(blueprints, all_build_orders)
+
+# increase recursion limit
+import sys
+sys.setrecursionlimit(100000)
+
+result_dict = dict()
+
+def calc_geodes(miner, max_time=24):
+
+    # check if we have already calculated this
+    if miner.to_tuple() in result_dict:
+        return result_dict[miner.to_tuple()]
+
+    if miner.time >= max_time:
+        result_dict[miner.to_tuple()] = miner.resources[-1]
+        return miner.resources[-1]
+
+    # if we can build a geode robot, always build it
+    if miner.can_afford_geode():
+        new_miner = deepcopy(miner)
+        new_miner.mine()
+        new_miner.build_geode_robot()
+        return calc_geodes(new_miner, max_time)
+
+    # test all of the other options
+
+    possible_miner_states = []
+
+    if miner.can_afford_ore() and miner.production[0] <= miner.max_costs[0]:
+        new_miner = deepcopy(miner)
+        new_miner.mine()
+        new_miner.build_ore_robot()
+        possible_miner_states.append(new_miner)
+    if miner.can_afford_clay() and miner.production[1] <= miner.max_costs[1]:
+        new_miner = deepcopy(miner)
+        new_miner.mine()
+        new_miner.build_clay_robot()
+        possible_miner_states.append(new_miner)
+    if miner.can_afford_obs() and miner.production[2] <= miner.max_costs[2]:
+        new_miner = deepcopy(miner)
+        new_miner.mine()
+        new_miner.build_obs_robot()
+        possible_miner_states.append(new_miner)
+    if (miner.resources[0] < miner.max_costs[0] and miner.production[0] > 0) or \
+        (miner.resources[1] < miner.max_costs[1] and miner.production[1] > 0) or \
+        (miner.resources[2] < miner.max_costs[2] and miner.production[2] > 0):
+        new_miner = deepcopy(miner)
+        new_miner.mine()
+        possible_miner_states.append(new_miner)
 
 
-def build_robots(miner):
-    while miner.buy_geode_robot():
+    if len(possible_miner_states) == 0:
+        # result_dict[miner.to_tuple()] = miner.resources[-1]
         pass
+        return miner.resources[-1]
 
-    while miner.buy_obs_robot():
-        pass
+    result = max([calc_geodes(miner, max_time) for miner in possible_miner_states])
+    result_dict[miner.to_tuple()] = result
 
-    while miner.buy_clay_robot():
-        pass
-
-    while miner.buy_ore_robot():
-        pass
-
-    return miner
+    return result
 
 
-build_order = [(1,0,0,0),
-                (1,1,0,0),
-                (1,2,0,0),
-                (1,3,1,0),
-                (1,4,1,0),
-                (1,4,2,0),
-                (1,4,2,1),
-                (1,4,2,2),
-                (1,4,2,3),
-                (1,4,2,4)]
+print("Starting calculations (part a)")
+t0 = perf_counter() # start timer
+
+result_a = Parallel(n_jobs=8)(delayed(calc_geodes)(MiningOperation(blueprint), 24) for blueprint in blueprints)
+
+print(f"Total time: {(perf_counter() - t0)/60:.2f} minutes")
+print(f"Answers: {result_a}")
+
+sum_ql = sum([(i+1)*x for i, x in enumerate(result_a)])
+
+print(f"Sum QL (part a): {sum_ql}")
 
 
-max_production = (5,4,4,3)
-def generate_build_orders(current_build_order, all_build_orders):
-    """Generate all possible build orders"""
+print("Starting calculations (part b)")
+t0 = perf_counter() # start timer
+result = Parallel(n_jobs=8)(delayed(calc_geodes)(MiningOperation(blueprint), 32) for blueprint in blueprints[:3])
 
-    if all([current_build_order[-1][i] == max_production[i] for i in range(4)]):
-        all_build_orders.append(current_build_order)
-        return current_build_order, all_build_orders
+print(f"Total time: {(perf_counter() - t0)/60:.2f} minutes")
 
-    for i in range(4):
-        if current_build_order[-1][i] >= max_production[i]:
-            continue
-
-        # cannot build without clay
-        if i == 2 and current_build_order[-1][1]<=1:
-            continue
-
-        # cannot build without obsidian
-        if i == 3 and current_build_order[-1][2]<=1:
-            continue
-
-        new_build_orders = list(current_build_order)
-        new_build_orders.append(list(current_build_order[-1]))
-        new_build_orders[-1][i] += 1
-        new_build_orders, all_build_orders = generate_build_orders(new_build_orders,
-                                                                   all_build_orders)
-    return current_build_order, all_build_orders
-
-
-_, all_build_orders = generate_build_orders([[1,0,0,0]], [])
-
-print(len(all_build_orders))
-
-
-def simulate_miner(blueprint, build_order):
-    miner = MiningOperation(blueprint)
-    build_order_i = 0
-    num_build_orders = len(build_order)
-    for i in range(24):
-        while build_order_i < num_build_orders and miner.build_robots(build_order[build_order_i]):
-            build_order_i += 1
-        miner.mine()
-    return miner.resources[-1], miner.production
-
-
-print(simulate_miner(blueprints[0], all_build_orders[0]))
-
-def find_optimal_build(blueprints, build_orders):
-    best_geodes = list()
-    final_productions = list()
-    for blueprint in blueprints:
-        best_geode = 0
-        final_production = None
-        for build_order in build_orders:
-            geodes, fp = simulate_miner(blueprint, build_order)
-            if geodes > best_geode:
-                best_geode = geodes
-                final_production = fp
-
-        best_geodes.append(best_geode)
-        final_productions.append(final_production)
-
-    return best_geodes, final_productions
-
-
-best_geodes, final_productions = find_optimal_build(blueprints, all_build_orders)
-
-for i, b in enumerate(final_productions):
-    print(f"{i+1}: {best_geodes}, {b}")
+print(f"Answers: {result}")
+mult = result[0]*result[1]*result[2]
+print(f"Mult (part b): {mult}")
