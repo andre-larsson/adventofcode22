@@ -170,7 +170,7 @@ def calc_geodes(miner, max_time=24):
 print("Starting calculations (part a)")
 t0 = perf_counter() # start timer
 
-result_a = Parallel(n_jobs=8)(delayed(calc_geodes)(MiningOperation(blueprint), 24) for blueprint in blueprints)
+result_a = Parallel(n_jobs=32)(delayed(calc_geodes)(MiningOperation(blueprint), 24) for blueprint in blueprints)
 
 print(f"Total time: {(perf_counter() - t0)/60:.2f} minutes")
 print(f"Answers: {result_a}")
