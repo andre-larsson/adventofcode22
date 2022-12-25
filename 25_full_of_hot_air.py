@@ -25,8 +25,7 @@ for line in lines:
 print(f"Sum: {sum(numbers)}")
 
 
-def convert_to_snafu(numbers):
-    num_to_convert = numbers
+def convert_to_snafu(num_to_convert):
     new_num = list()
     base = 5
     i = 0
