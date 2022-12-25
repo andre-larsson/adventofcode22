@@ -67,10 +67,10 @@ def move_elves(grid_padded, max_count=9999999):
 
     return grid_padded, i
 
-# find smallest rectangle containing all elves
-
+# simulate for 10 rounds
 new_grid, _ = move_elves(grid_padded.copy(), 10)
 
+# find smallest rectangle containing all elves
 coord_array = np.argwhere(new_grid)
 minv = np.min(coord_array, axis=0)
 maxv = np.max(coord_array, axis=0)
@@ -81,6 +81,7 @@ print("Answer part one:", num_empty)
 
 # part two
 
+# simulate until no more moves
 new_grid, num_rounds = move_elves(grid_padded.copy())
 
-print("Answer part two:",num_rounds)
+print("Answer part two:", num_rounds)
