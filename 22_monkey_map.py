@@ -73,7 +73,6 @@ def do_moves(current_pos, facing, moves):
             steps = int(move)
             for i in range(steps):
                 current_pos = get_next_pos(current_pos, facing)
-
         elif move == "R":
             facing = (facing + 1) % 4
         else:
@@ -96,39 +95,59 @@ print("Answer part one:", password)
 # right, down, left, up
 # https://www.geogebra.org/m/QAPeq2cw
 side_connections = {
-    ("A", 0) : ("D", 0, 2), # face, side, facing
-    ("A", 1) : ("C", 0, 2),
-    ("A", 2) : ("B", 0, 2),
-    ("A", 3) : ("F", 1, 1),
-    ("B", 0) : ("A", 2, 0),
-    ("B", 1) : ("C", 3, 1),
-    ("B", 2) : ("E", 2, 0),
-    ("B", 3) : ("F", 2, 0),
-    ("C", 0) : ("A", 1, 3),
-    ("C", 1) : ("D", 3, 1),
-    ("C", 2) : ("E", 3, 1),
-    ("C", 3) : ("B", 1, 3),
-    ("D", 0) : ("A", 0, 2),
-    ("D", 1) : ("F", 0, 2),
-    ("D", 2) : ("E", 0, 2),
-    ("D", 3) : ("C", 1, 3),
-    ("E", 0) : ("D", 2, 0),
-    ("E", 1) : ("F", 3, 3),
-    ("E", 2) : ("B", 2, 0),
-    ("E", 3) : ("C", 2, 0),
-    ("F", 0) : ("D", 1, 3),
-    ("F", 1) : ("A", 3, 1),
-    ("F", 2) : ("B", 3, 1),
-    ("F", 3) : ("E", 1, 3),
+    ("A", 0) : ("D", lambda x: (149 - x[0]  , 99), 2), # face, adjacent_pixel, new_facing
+    ("A", 1) : ("C", lambda x: (x[1] - 50 , 99), 2),
+    ("A", 2) : ("B", lambda x: (x[0] , x[1]-1), 2),
+    ("A", 3) : ("F", lambda x: (299-x[1] , 0), 1),
+    ("B", 0) : ("A", lambda x: (x[0] , x[1]+1), 0),
+    ("B", 1) : ("C", lambda x: (x[0]+1 , x[1]), 1),
+    ("B", 2) : ("E", lambda x: (199-x[0] , 0), 0),
+    ("B", 3) : ("F", lambda x: (100+x[1] , 0), 0),
+    ("C", 0) : ("A", lambda x: (49, 50+x[0]), 3),
+    ("C", 1) : ("D", lambda x: (x[0]+1 , x[1]), 1),
+    ("C", 2) : ("E", lambda x: (-50+x[0] , 100), 1),
+    ("C", 3) : ("B", lambda x: (x[0]-1 , x[1]), 3),
+    ("D", 0) : ("A", lambda x: (149-x[0], 149), 2),
+    ("D", 1) : ("F", lambda x: (100+x[1] ,49 ), 2),
+    ("D", 2) : ("E", lambda x: (x[0] , x[1]-1), 2),
+    ("D", 3) : ("C", lambda x: (x[0]-1 , x[1]), 3),
+    ("E", 0) : ("D", lambda x: (x[0] , x[1]+1), 0),
+    ("E", 1) : ("F", lambda x: (x[0]-1 , x[1]), 1),
+    ("E", 2) : ("B", lambda x: (149-x[0] ,50 ), 0),
+    ("E", 3) : ("C", lambda x: (50+x[1] ,50), 0),
+    ("F", 0) : ("D", lambda x: (149 , -100+x[0]), 3),
+    ("F", 1) : ("A", lambda x: (0 , 149-x[1]), 1),
+    ("F", 2) : ("B", lambda x: (0 ,-100+x[0] ), 1),
+    ("F", 3) : ("E", lambda x: (x[0]-1 , x[1]), 3),
 }
 
 # check consistency
-for key in side_connections.keys():
-    face, side, facing = side_connections[key]
-    face2, side2, facing2 = side_connections[(face, side)]
+for key1, value1 in side_connections.items():
+    face1, f_adjacent1, facing1 = value1
+    for key2, value2 in side_connections.items():
+        if key2[0] == face1 and value2[0] == key1[0]:
+            face2, f_adjacent2, facing2 = value2
+            orig_pixel = (50,99)
+            if orig_pixel != f_adjacent2(f_adjacent1(orig_pixel)):
+                pass
 
-    if face2 != key[0] or side2 != key[1]:
-        print("Sides should be connected!:", key)
+
+
+facing_to_char = {0: ">" , 1: "v", 2: "<", 3: "^"}
+
+def map_to_str(current_pos, facing):
+    s = ""
+    for i in range(max_row):
+        for j in range(max_col):
+            if (i,j) == current_pos:
+                s += str(facing_to_char[facing])
+            elif (i,j) in map_dict.keys():
+                s += map_dict[(i,j)]
+            else:
+                s += " "
+        s += "\n"
+    return s
+
 
 
 def get_cube_coords(pos):
@@ -150,7 +169,7 @@ def get_cube_coords(pos):
     elif y_box == 3 and x_box == 0:
         return "F", y, x
     else:
-        print(x, y)
+        print(y, x)
         return "?", y, x
 
 # cube layout:
@@ -159,124 +178,53 @@ def get_cube_coords(pos):
 # ED
 # F
 
-def cube_coords_to_map_coords(face, pos):
-    if face == "B":
-        upper_right = (0,50)
-    elif face == "A":
-        upper_right = (0,100)
-    elif face == "C":
-        upper_right = (50,50)
-    elif face == "D":
-        upper_right = (100,50)
-    elif face == "E":
-        upper_right = (100,0)
-    else:
-        upper_right = (150,0)
-    return upper_right[0] + pos[0], upper_right[1] + pos[1]
-
-
 @cache
 def get_next_pos_cube(current_pos, facing):
+
+    new_facing = facing
+
     if facing == 0:  # right
         new_pos = (current_pos[0], current_pos[1] + 1)
-        if new_pos not in all_coords:
-            cube_side, cx, cy = get_cube_coords(current_pos)
-            new_face, new_side, new_facing = side_connections[(cube_side, facing)]
-
-            if new_side == 0: # right
-                cx, cy = 49, cy
-            elif new_side == 1: # down
-                cx, cy = cy, 49
-            elif new_side == 2: # left
-                cx, cy = 0, cy
-            else:
-                cx, cy = cy, 0 # up
-
-            new_pos = cube_coords_to_map_coords(new_face, (cx, cy))
-        if map_dict[new_pos] == "#":
-            return current_pos
-        else:
-            return new_pos
     elif facing == 1:  # down
         new_pos = (current_pos[0] + 1, current_pos[1])
-        if new_pos not in all_coords:
-            cube_side, cx, cy = get_cube_coords(current_pos)
-            new_face, new_side, new_facing = side_connections[(cube_side, facing)]
-
-            if new_side == 0: # right
-                cx, cy = 49, cx
-            elif new_side == 1: # down
-                cx, cy = cx, 49
-            elif new_side == 2: # left
-                cx, cy = 0, cx
-            else:
-                cx, cy = cx, 0 # up
-
-            new_pos = cube_coords_to_map_coords(new_face, (cx, cy))
-        if map_dict[new_pos] == "#":
-            return current_pos
-        else:
-            return new_pos
     elif facing == 2:  # left
         new_pos = (current_pos[0], current_pos[1] - 1)
-        if new_pos not in all_coords:
-            cube_side, cx, cy = get_cube_coords(current_pos)
-            new_face, new_side, new_facing = side_connections[(cube_side, facing)]
-
-            if new_side == 0: # right
-                cx, cy = 49, cy
-            elif new_side == 1: # down
-                cx, cy = cy, 49
-            elif new_side == 2: # left
-                cx, cy = 0, cy
-            else:
-                cx, cy = cy, 0 # up
-
-            new_pos = cube_coords_to_map_coords(new_face, (cx, cy))
-        if map_dict[new_pos] == "#":
-            return current_pos
-        else:
-            return new_pos
     else: # up
         new_pos = (current_pos[0] - 1, current_pos[1])
 
-        if new_pos not in all_coords:
-            cube_side, cx, cy = get_cube_coords(current_pos)
-            new_face, new_side, new_facing = side_connections[(cube_side, facing)]
+    if new_pos not in all_coords:
+        cube_side, _cx, _cy = get_cube_coords(current_pos)
+        new_face, f_adjacent_pixel, new_facing = side_connections[(cube_side, facing)]
+        new_pos = f_adjacent_pixel(current_pos)
+        pass
 
-            if new_side == 0: # right
-                cx, cy = 49, cx
-            elif new_side == 1: # down
-                cx, cy = cx, 49
-            elif new_side == 2: # left
-                cx, cy = 0, cx
-            else:
-                cx, cy = cx, 0 # up
+    if new_pos not in all_coords:
+        pass
 
-            new_pos = cube_coords_to_map_coords(new_face, (cx, cy))
-
-        if map_dict[new_pos] == "#":
-            return current_pos
-        else:
-            return new_pos
+    if map_dict[new_pos] == "#":
+        return current_pos, facing
+    else:
+        return new_pos, new_facing
 
 
 def do_moves_cube(current_pos, facing, moves):
     for move in moves:
+        # print("move", move)
         if move.isdigit():
             steps = int(move)
             for i in range(steps):
-                current_pos = get_next_pos_cube(current_pos, facing)
+                current_pos, facing = get_next_pos_cube(current_pos, facing)
                 pass
-
         elif move == "R":
             facing = (facing + 1) % 4
         else:
             facing = (facing - 1) % 4
+        # print(map_to_str(current_pos, facing))
     return current_pos, facing
 
-
+print(map_to_str(init_pos, 0))
 final_pos_b, facing_b = do_moves_cube(tuple(init_pos), 0, moves)
 password_b = 1000 * (final_pos_b[0]+1) + 4*(final_pos_b[1]+1) + facing
 
+print(final_pos_b, facing_b)
 print(password_b)  # 50603 too high
