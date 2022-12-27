@@ -32,51 +32,51 @@ def get_next_pos(current_pos, facing):
             row = [x[1] for x in all_coords if x[0] == current_pos[0]]
             min_col = min(row)
             new_pos = (current_pos[0], min_col)
-        if map_dict[new_pos] == "#":
-            return current_pos
-        else:
-            return new_pos
     elif facing == 1:  # down
         new_pos = (current_pos[0] + 1, current_pos[1])
         if new_pos not in all_coords:
             col = [x[0] for x in all_coords if x[1] == current_pos[1]]
             min_row = min(col)
             new_pos = (min_row, current_pos[1])
-        if map_dict[new_pos] == "#":
-            return current_pos
-        else:
-            return new_pos
     elif facing == 2:  # left
         new_pos = (current_pos[0], current_pos[1] - 1)
         if new_pos not in all_coords:
             row = [x[1] for x in all_coords if x[0] == current_pos[0]]
             max_col = max(row)
             new_pos = (current_pos[0], max_col)
-        if map_dict[new_pos] == "#":
-            return current_pos
-        else:
-            return new_pos
     else: # up
         new_pos = (current_pos[0] - 1, current_pos[1])
         if new_pos not in all_coords:
             col = [x[0] for x in all_coords if x[1] == current_pos[1]]
             max_row = max(col)
             new_pos = (max_row, current_pos[1])
-        if map_dict[new_pos] == "#":
-            return current_pos
-        else:
-            return new_pos
 
-def do_moves(current_pos, facing, moves):
+    if map_dict[new_pos] == "#":
+        return current_pos, facing
+    else:
+        return new_pos, facing
+
+def do_moves(current_pos, facing, moves, next_pos_func=get_next_pos, verbose=False):
     for move in moves:
+
+        if verbose:
+            print("move", move)
+            print(current_pos)
+
         if move.isdigit():
             steps = int(move)
             for i in range(steps):
-                current_pos = get_next_pos(current_pos, facing)
+                current_pos, facing = next_pos_func(current_pos, facing)
+
+                if verbose:
+                    print(i, current_pos)
         elif move == "R":
             facing = (facing + 1) % 4
         else:
             facing = (facing - 1) % 4
+
+        if verbose:
+            print(map_to_str(current_pos, facing))
     return current_pos, facing
 
 
@@ -256,7 +256,7 @@ for pos in [(0,50), (0, 100),
 
 
 # print(map_to_str(init_pos, 0))
-final_pos_b, facing_b = do_moves_cube(tuple(init_pos), 0, moves)
+final_pos_b, facing_b = do_moves(tuple(init_pos), 0, moves, get_next_pos_cube)
 password_b = 1000 * (final_pos_b[0]+1) + 4*(final_pos_b[1]+1) + facing_b
 
 print("Answer part two:", password_b)
