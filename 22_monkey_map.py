@@ -18,7 +18,7 @@ moves = p.findall(lines[-1])
 
 all_coords = list(map_dict.keys())
 init_pos = sorted(all_coords)[0]
-facing = 0  # 0 = right, 1 = down, 2 = left, 3 = up
+init_facing = 0  # 0 = right, 1 = down, 2 = left, 3 = up
 
 max_row = max([x[0] for x in all_coords])
 max_col = max([x[1] for x in all_coords])
@@ -95,28 +95,28 @@ print("Answer part one:", password)
 # right, down, left, up
 # https://www.geogebra.org/m/QAPeq2cw
 side_connections = {
-    ("A", 0) : ("D", lambda x: (149 - x[0]  , 99), 2), # face, adjacent_pixel, new_facing
+    ("A", 0) : ("D", lambda x: (149 - x[0], 99), 2), # face, adjacent_pixel, new_facing
     ("A", 1) : ("C", lambda x: (x[1] - 50 , 99), 2),
     ("A", 2) : ("B", lambda x: (x[0] , x[1]-1), 2),
-    ("A", 3) : ("F", lambda x: (299-x[1] , 0), 1),
+    ("A", 3) : ("F", lambda x: (199 , -100+x[1]), 3),
     ("B", 0) : ("A", lambda x: (x[0] , x[1]+1), 0),
     ("B", 1) : ("C", lambda x: (x[0]+1 , x[1]), 1),
-    ("B", 2) : ("E", lambda x: (199-x[0] , 0), 0),
+    ("B", 2) : ("E", lambda x: (149-x[0] , 0), 0),
     ("B", 3) : ("F", lambda x: (100+x[1] , 0), 0),
     ("C", 0) : ("A", lambda x: (49, 50+x[0]), 3),
     ("C", 1) : ("D", lambda x: (x[0]+1 , x[1]), 1),
-    ("C", 2) : ("E", lambda x: (-50+x[0] , 100), 1),
+    ("C", 2) : ("E", lambda x: (100 , -50+x[0]), 1),
     ("C", 3) : ("B", lambda x: (x[0]-1 , x[1]), 3),
     ("D", 0) : ("A", lambda x: (149-x[0], 149), 2),
     ("D", 1) : ("F", lambda x: (100+x[1] ,49 ), 2),
     ("D", 2) : ("E", lambda x: (x[0] , x[1]-1), 2),
     ("D", 3) : ("C", lambda x: (x[0]-1 , x[1]), 3),
     ("E", 0) : ("D", lambda x: (x[0] , x[1]+1), 0),
-    ("E", 1) : ("F", lambda x: (x[0]-1 , x[1]), 1),
+    ("E", 1) : ("F", lambda x: (x[0]+1 , x[1]), 1),
     ("E", 2) : ("B", lambda x: (149-x[0] ,50 ), 0),
     ("E", 3) : ("C", lambda x: (50+x[1] ,50), 0),
     ("F", 0) : ("D", lambda x: (149 , -100+x[0]), 3),
-    ("F", 1) : ("A", lambda x: (0 , 149-x[1]), 1),
+    ("F", 1) : ("A", lambda x: (0 , 100+x[1]), 1),
     ("F", 2) : ("B", lambda x: (0 ,-100+x[0] ), 1),
     ("F", 3) : ("E", lambda x: (x[0]-1 , x[1]), 3),
 }
@@ -137,8 +137,8 @@ facing_to_char = {0: ">" , 1: "v", 2: "<", 3: "^"}
 
 def map_to_str(current_pos, facing):
     s = ""
-    for i in range(max_row):
-        for j in range(max_col):
+    for i in range(max_row+1):
+        for j in range(max_col+1):
             if (i,j) == current_pos:
                 s += str(facing_to_char[facing])
             elif (i,j) in map_dict.keys():
@@ -179,7 +179,7 @@ def get_cube_coords(pos):
 # F
 
 @cache
-def get_next_pos_cube(current_pos, facing):
+def get_next_pos_cube(current_pos, facing, all_empty=False):
 
     new_facing = facing
 
@@ -201,30 +201,73 @@ def get_next_pos_cube(current_pos, facing):
     if new_pos not in all_coords:
         pass
 
-    if map_dict[new_pos] == "#":
+    if map_dict[new_pos] == "#" or all_empty:
         return current_pos, facing
     else:
         return new_pos, new_facing
 
 
-def do_moves_cube(current_pos, facing, moves):
+def do_moves_cube(current_pos, facing, moves, verbose=False):
     for move in moves:
-        # print("move", move)
+
+        if verbose:
+            print("move", move)
+            print(current_pos)
+
         if move.isdigit():
             steps = int(move)
             for i in range(steps):
                 current_pos, facing = get_next_pos_cube(current_pos, facing)
-                pass
+
+                if verbose:
+                    print(i, current_pos)
+
         elif move == "R":
             facing = (facing + 1) % 4
         else:
             facing = (facing - 1) % 4
-        # print(map_to_str(current_pos, facing))
+
+        if verbose:
+            print(map_to_str(current_pos, facing))
+
     return current_pos, facing
 
-print(map_to_str(init_pos, 0))
-final_pos_b, facing_b = do_moves_cube(tuple(init_pos), 0, moves)
-password_b = 1000 * (final_pos_b[0]+1) + 4*(final_pos_b[1]+1) + facing
 
-print(final_pos_b, facing_b)
-print(password_b)  # 50603 too high
+def test_cube(pos, dir, verbose=True):
+    """
+    test cube topology
+    if we start moving 200 steps in any direction, we should end up where we started
+    in an empty grid
+    """
+
+    current_pos = tuple(pos)
+    facing = dir
+    if verbose:
+        print(pos, facing)
+    for i in range(200):
+        current_pos, facing = get_next_pos_cube(current_pos, facing, all_empty=True)
+        if verbose:
+            print(i, current_pos, facing)
+
+    return current_pos == pos and facing == dir
+
+
+### DEBUGGING
+print("Test topology, all should be True.")
+for pos in [(0,50), (0, 100),
+            (50, 50),
+            (100, 0), (100, 50),
+            (150, 0)]:  # start at topright corner of each face
+    print("Face:", get_cube_coords(pos))
+    for i in range(4): # test all directions
+        passed_test = test_cube(pos, i, False)
+        print(i, passed_test)
+        if not passed_test:
+            test_cube(pos, i, True)
+
+
+# print(map_to_str(init_pos, 0))
+final_pos_b, facing_b = do_moves_cube(tuple(init_pos), 0, moves)
+password_b = 1000 * (final_pos_b[0]+1) + 4*(final_pos_b[1]+1) + facing_b
+
+print("Answer part two:", password_b)
