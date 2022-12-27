@@ -1,5 +1,9 @@
+from collections import defaultdict
 from copy import deepcopy
-from functools import cache
+import math
+from time import perf_counter
+from heapq import heapify, heappush, heappop
+
 
 import numpy as np
 
@@ -16,6 +20,19 @@ init_grid = np.ones((len(lines),len(lines[0].strip())), dtype=bool)
 start = (0,1)
 end = (init_grid.shape[0]-1, init_grid.shape[1]-2)
 
+blizzard_height = init_grid.shape[0] - 2
+blizzard_width = init_grid.shape[1] - 2
+
+if blizzard_height == blizzard_width:
+    blizzard_period = blizzard_height
+else:
+    gcd = math.gcd(blizzard_height, blizzard_width)
+    blizzard_period = (blizzard_height * blizzard_width) // gcd
+
+print(blizzard_height, blizzard_width)
+# minimum time for when blizzard will repeat
+print("Blizzard periodicity is:", blizzard_period)
+
 
 for i, line in enumerate(lines):
     for j, e in enumerate(line):
@@ -25,7 +42,7 @@ for i, line in enumerate(lines):
         elif e == ".":
             init_grid[i,j] = False
 
-def add_blizzards(blizzard_dict):
+def create_grid_with_blizzards(blizzard_dict):
     grid = deepcopy(init_grid)
     for blizzard, state in blizzard_dict.items():
         direction, i, j = state
@@ -71,12 +88,12 @@ def move_blizzard(grid, blizzard_dict):
             new_pos = (i, j)
         blizzard_dict[blizzard] = (direction, new_pos[0], new_pos[1])
 
-    grid = add_blizzards(blizzard_dict)
+    grid = create_grid_with_blizzards(blizzard_dict)
 
     return grid, blizzard_dict
 
 
-def simulate_blizzard(grid, blizzard_dict, n=5):
+def simulate_blizzard(grid, blizzard_dict, n=10):
     states = []
     states.append((deepcopy(grid), deepcopy(blizzard_dict)))
     # print(blizzard_to_str(grid, blizzard_dict))
@@ -87,10 +104,9 @@ def simulate_blizzard(grid, blizzard_dict, n=5):
         # print(blizzard_to_str(grid, blizzard_dict))
     return states
 
-# blizzard_dict.clear()
 
 max_time = 1000
-states = simulate_blizzard(deepcopy(init_grid), deepcopy(blizzard_dict), max_time+1)
+states = simulate_blizzard(deepcopy(init_grid), deepcopy(blizzard_dict), blizzard_period)
 
 def get_moves(cur_pos, next_state):
     moves = []
@@ -113,40 +129,45 @@ def get_moves(cur_pos, next_state):
     return moves
 
 
-import sys
-sys.setrecursionlimit(10000)
+def a_star_search(start, goal, time=0):
 
-def adjacent(pos1, pos2):
-    return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1]) == 1
+    # heuristic is manhattan distance
+    h = lambda x: abs(x[0] - goal[0]) + abs(x[1] - goal[1])
 
-@cache
-def reach_goal(current_pos, goal, time):
-    global max_time
-    if adjacent(current_pos, goal):
-        max_time = min(max_time, time+1)
-        return time+1
+    start_node = (start[0], start[1], time)
 
-    if time > max_time:
-        return 99999
+    # note: score is time
+    g_score = defaultdict(lambda: np.inf)
+    g_score[start_node] = time
 
-    moves = get_moves(current_pos, states[time+1][0])
-    if len(moves) == 0:
-        return 99999
+    f_score = defaultdict(lambda: np.inf)
+    f_score[start_node] = h(start_node)
 
-    return min([reach_goal(move, goal, time+1) for move in moves])
+    open_set = [(f_score[start_node], start_node)]
+    heapify(open_set)
 
-time_start0 = 0
-time_end0 = reach_goal(start, end, time_start0)
 
-print("Answer 1 (start-end):", time_end0)
+    while open_set:
+        _, current = heappop(open_set)
+        if current[0:2] == goal:
+            return g_score[current]
 
-# part 2
-max_time = 1000
-time_start1= reach_goal(end, start, time_end0)
+        for move in get_moves(current, states[int((g_score[current]+1) % blizzard_period)][0]):
+            tentative_g_score = g_score[current] + 1
+            move = (move[0], move[1], tentative_g_score)
+            if tentative_g_score < g_score[move]:
+                g_score[move] = tentative_g_score
+                f_score[move] = tentative_g_score + h(move)
+                heappush(open_set, (f_score[move], move))
+    return np.inf
 
+t0 = perf_counter()
+time_start0 = a_star_search(start, end)
+print("Answer part 1 (start-end):", time_start0)
+
+time_start1 = a_star_search(end, start, time_start0)
 print("(start-end-start):", time_start1)
 
-max_time = 1000
-time_end1= reach_goal(start, end, time_start1)
-
-print("Answer 2 (start-end-start-end):", time_end1)
+time_end1 = a_star_search(start, end, time_start1)
+print("Answer part 2 (start-end-start-end):", time_end1)
+print(f"Total time: {perf_counter() - t0:.5f} s")
