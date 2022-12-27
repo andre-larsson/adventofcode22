@@ -93,7 +93,7 @@ print("Answer part one:", password)
 # F
 
 # right, down, left, up
-# https://www.geogebra.org/m/QAPeq2cw
+# https://www.geogebra.org/m/QAPeq2cw, pattern 9
 side_connections = {
     ("A", 0) : ("D", lambda x: (149 - x[0], 99), 2), # face, adjacent_pixel, new_facing
     ("A", 1) : ("C", lambda x: (x[1] - 50 , 99), 2),
@@ -120,17 +120,6 @@ side_connections = {
     ("F", 2) : ("B", lambda x: (0 ,-100+x[0] ), 1),
     ("F", 3) : ("E", lambda x: (x[0]-1 , x[1]), 3),
 }
-
-# check consistency
-for key1, value1 in side_connections.items():
-    face1, f_adjacent1, facing1 = value1
-    for key2, value2 in side_connections.items():
-        if key2[0] == face1 and value2[0] == key1[0]:
-            face2, f_adjacent2, facing2 = value2
-            orig_pixel = (50,99)
-            if orig_pixel != f_adjacent2(f_adjacent1(orig_pixel)):
-                pass
-
 
 
 facing_to_char = {0: ">" , 1: "v", 2: "<", 3: "^"}
